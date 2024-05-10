@@ -82,6 +82,12 @@ module SolidusSupport
       #
       # @see #load_solidus_decorators_from
       def enable_solidus_engine_support(engine)
+        # Starting from Rails 6.1, we can use the default gem because
+        # the engines are loaded in the correct way.
+        if Gem::Version.new(Rails.version) >= Gem::Version.new('6.1')
+          raise 'You are using Rails 6.1 or newer, remove this fork and use the default gem instead'
+        end
+
         # In the past, view and controller paths of Solidus extensions were
         # added at extension loading time. As a result, if an extension
         # customizing a Solidus engine is loaded before that engine
@@ -99,12 +105,15 @@ module SolidusSupport
         # by those gems, we work around those gems by adding our paths before
         # `initialize_cache`, which is the Rails initializer called before
         # `set_load_path`.
-        initializer "#{name}_#{engine}_paths", before: :initialize_cache do
+
+        # In Rails < 6.1, the engines are loaded in the wrong order, so we need
+        # to remove the initializer below and run the code at gem's initialization.
+        # initializer "#{name}_#{engine}_paths", before: :initialize_cache do
           if SolidusSupport.send(:"#{engine}_available?")
             paths['app/controllers'] << "lib/controllers/#{engine}"
             paths['app/views'] << "lib/views/#{engine}"
           end
-        end
+        # end
 
         if SolidusSupport.send(:"#{engine}_available?")
           decorators_path = root.join("lib/decorators/#{engine}")
